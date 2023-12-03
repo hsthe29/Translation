@@ -84,3 +84,4 @@
 
 # Web server
 - Using [Flask](https://github.com/pallets/flask) to deploy a simple web server run on `localhost` that provides bilingual translation and visualizes attention weights between pairs of sentences
+- Run: `$ python run_app.py` or `$ python3 run_app.py`
