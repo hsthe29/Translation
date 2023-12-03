@@ -1,4 +1,6 @@
 # English-Vietnamese Bilingual Translation with Positional Separated Attention Transformer 
+Continued development from the repo [NeuralMachineTranslation](https://github.com/hsthe29/NeuralMachineTranslation)
+
 ```
 @github{Translation,
   author    = {The Ho Sy},
@@ -12,7 +14,7 @@
 - Modified from Vanilla Transformer's Architecture
 
 # Data
-- [PhoMT]()
+- See [PhoMT](https://github.com/VinAIResearch/PhoMT).
 
 # Training Task:
 - Target Masked Translation Modeling (Target MTM)
