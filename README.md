@@ -8,6 +8,9 @@
 }
 ```
 
+# Model Architecture
+- Modified from Vanilla Transformer's Architecture
+
 # Data
 - [PhoMT]()
 
@@ -39,9 +42,45 @@
   - Transform to `"vi<s> Xin chào, bạn có khỏe không? </s>"`
   - Target: `"en<s> Hello, how are you? </s>""`
 
+# Model configuration
+- See file [config.py](transformer/model/config.py) and [configV1.json](assets/config/configV1.json)
+
+# Preload dataset
+- Because of the large amount of data, my resources are limited, so I have to process and segment the data to be able to train the model.
+- Preload parameter:
+  - seed: a seed to create randoms from random generator 
+  - shuffle: if True, the dataset will be shuffled before chunked
+  - chunk_size: size of each chunk
+
 # Training parameters
 - Epochs = 10
 - Batch size = 8
 - Accumulation gradient steps = 4
 - AdamW optimizer with WarmupLinearScheduler
 - Max learning rate = 2e-4
+- Training arguments:
+  - config 
+  - load_prestates 
+  - epochs 
+  - init_lr
+  - train_data_dir
+  - val_data_dir
+  - train_batch_size
+  - val_batch_size
+  - print_steps
+  - validation_steps
+  - max_warmup_steps
+  - gradient_accumulation_steps
+  - save_state_steps
+  - weight_decay
+  - warmup_proportion
+  - min_proportion
+  - use_gpu
+  - max_grad_norm
+  - save_ckpt
+  - ckpt_loss_path
+  - ckpt_bleu_path
+  - state_path
+
+# Web server
+- Using [Flask](https://github.com/pallets/flask) to deploy a simple web server run on `localhost` that provides bilingual translation and visualizes attention weights between pairs of sentences
