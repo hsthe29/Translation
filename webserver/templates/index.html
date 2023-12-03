@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Translator</title>
+    <link rel="stylesheet" href="{{ url_for('static',filename='styles/main.css') }}">
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</head>
+<body>
+    <div class="title-container">
+        <h1 class="title">English-Vietnamese Translator</h1>
+        <div class="end-btn">
+            <div class="state" onclick="shutDown(this)" title="Online"></div>
+        </div>
+    </div>
+    <div id="message" class="toast"></div>
+    <hr>
+    <div class="language">
+        <label class="language-name" id="input-language-name">English</label>
+        <span id="swap-btn"><img src="{{ url_for('static', filename='images/swap.png') }}" width="32" height="32"></span>
+        <label class="language-name" id="target-language-name"> Vietnamese</label>
+    </div>
+
+    <div class="language-content">
+        <textarea class="autoresizing-textarea" id="input-language" rows="7" placeholder="Enter text"></textarea>
+        <div class="button-container">
+            <button class="button" id="post-btn" onclick="postData()">Translate</button>
+            <button class="button" id="clear-btn" onclick="clearData()">Clear</button>
+        </div>
+        <textarea class="autoresizing-textarea" id="target-language" rows="7" placeholder="Translation" readonly></textarea>
+    </div>
+    <hr>
+    <div>
+        <h2 class="title" style="text-align: center;">Visualize Attention</h2>
+        <hr>
+        <div class="tool-bar">
+            <label style="font-size: 20px;">Attention map index:</label>
+            <input type="number" id="number-input" value="0" max="15" min="0" style="width: 50px; font-size: 20px;">
+            <button onclick="visualizeLine()">Visualize</button>
+        </div>
+        <hr>
+        <div class="attention-plot-container" id="main-plot">
+            <table id="input-token">
+                <tr class="table-index-cell">
+                    <th>&#160;Input&#160;</th>
+                </tr>
+            </table>
+            <div class="line-container" id="line-plot">
+            </div>
+            <table id="target-token">
+                <tr class="table-index-cell">
+                    <th>&#160;Target&#160;</th>
+                </tr>
+            </table>
+        </div>
+    </div>
+    <script>
+        render();
+    </script>
+
+
+</body>
+</html>
