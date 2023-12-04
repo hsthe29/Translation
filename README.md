@@ -1,5 +1,5 @@
 # English-Vietnamese Bilingual Translation with Positional Separated Attention Transformer 
-Continued development from the repo [NeuralMachineTranslation](https://github.com/hsthe29/NeuralMachineTranslation)
+- Continued development from the repo [NeuralMachineTranslation](https://github.com/hsthe29/NeuralMachineTranslation)
 
 ```
 @github{Translation,
@@ -55,35 +55,43 @@ Continued development from the repo [NeuralMachineTranslation](https://github.co
   - chunk_size: size of each chunk
 
 # Training parameters
-- Epochs = 10
-- Batch size = 8
-- Accumulation gradient steps = 4
-- AdamW optimizer with WarmupLinearScheduler
-- Max learning rate = 2e-4
-- Training arguments:
-  - config 
-  - load_prestates 
-  - epochs 
-  - init_lr
-  - train_data_dir
-  - val_data_dir
-  - train_batch_size
-  - val_batch_size
-  - print_steps
-  - validation_steps
-  - max_warmup_steps
-  - gradient_accumulation_steps
-  - save_state_steps
-  - weight_decay
-  - warmup_proportion
-  - min_proportion
-  - use_gpu
-  - max_grad_norm
-  - save_ckpt
-  - ckpt_loss_path
-  - ckpt_bleu_path
-  - state_path
+- Optimizer: AdamW
+- Learning rate scheduler: WarmupLinearLR
+```
+Training arguments:
+  - config: "assets/config/configV1.json"
+  - load_prestates: True
+  - epochs: 20
+  - init_lr: 2e-4
+  - train_data_dir: /path_to_train_data_dir/
+  - val_data_dir: /path_to_val_data_dir/
+  - train_batch_size: 8
+  - val_batch_size: 16
+  - print_steps: 500
+  - validation_steps: 1000
+  - max_warmup_steps: 10000
+  - gradient_accumulation_steps: 4
+  - save_state_steps: 1000
+  - weight_decay: 0.001
+  - warmup_proportion: 0.1
+  - use_gpu: True
+  - max_grad_norm: 1.0
+  - save_ckpt: True
+  - ckpt_loss_path: /path_to_loss_ckpt/
+  - ckpt_bleu_path: /path_to_bleu_ckpt/
+  - state_path: /path_to_state/
+```
+
+# Training
+```
+$ pip install -r requirements.txt
+$ python preload_data.py --config=... --data_dir=... --save_dir=... --chunk_size=... --shuffle=...
+$ python train.py [training arguments]
+```
 
 # Web server
 - Using [Flask](https://github.com/pallets/flask) to deploy a simple web server run on `localhost` that provides bilingual translation and visualizes attention weights between pairs of sentences
+- Use [checkpoint]() at step 12000 (updating)
 - Run: `$ python run_app.py` or `$ python3 run_app.py`
+
+# Please give me a star if you find this project interesting <img src="https://drive.google.com/uc?id=1Qu--qOtp5yFN0OzkKA25R-nN9nQzdVPl" width="32">
