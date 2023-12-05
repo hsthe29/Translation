@@ -28,6 +28,7 @@ class TransformerConfig:
     eos_token_id: int = 3
     mask_token_id: int = 4
     seed: int = 291
+    pretrained_path: str | None = None
     
     @classmethod
     def load(cls, file: str):

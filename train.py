@@ -16,23 +16,22 @@ argument_parser.define("config", "assets/config/configV1.json", str)
 
 argument_parser.define("load_prestates", False, bool)
 
-argument_parser.define("epochs", 10, int)
-argument_parser.define("init_lr", 2e-4, float)
+argument_parser.define("epochs", 20, int)
+argument_parser.define("init_lr", 1e-4, float)
 
 argument_parser.define("train_data_dir", "./data/preload/PhoMT/train/", str)
 argument_parser.define("val_data_dir", "./data/preload/PhoMT/dev/", str)
 
-argument_parser.define("train_batch_size", 8, int)
-argument_parser.define("val_batch_size", 16, int)
-argument_parser.define("print_steps", 200, int)
-argument_parser.define("validation_steps", 1000, int)
-argument_parser.define("max_warmup_steps", 6000, int)
+argument_parser.define("train_batch_size", 16, int)
+argument_parser.define("val_batch_size", 32, int)
+argument_parser.define("print_steps", 400, int)
+argument_parser.define("validation_steps", 2000, int)
+argument_parser.define("max_warmup_steps", 20_000, int)
 argument_parser.define("gradient_accumulation_steps", 4, int)
-argument_parser.define("save_state_steps", 1000, int)
+argument_parser.define("save_state_steps", 2000, int)
 
 argument_parser.define("weight_decay", 0.001, float)
 argument_parser.define("warmup_proportion", 0.1, float)
-argument_parser.define("min_proportion", 0.001, float)
 argument_parser.define("use_gpu", True, bool)
 
 argument_parser.define("max_grad_norm", 1.0, float)
@@ -44,36 +43,34 @@ argument_parser.define("state_path", "state/training_state_dict.pt", str)
 
 
 def _train_step(model, batch, criterion: MaskedLabelSmoothingLoss, metrics: list[Metric]):
-    input_encoding, target_in_encoding, target_out_encoding = batch
+    input, target, label = batch
     
-    outputs: TransformerOutput = model(input_ids=input_encoding.ids,
-                                       target_in_ids=target_in_encoding.ids,
-                                       input_mask=input_encoding.mask,
-                                       target_in_mask=target_in_encoding.mask)
+    assert label.mask.dtype == torch.int64
+    
+    outputs: TransformerOutput = model(input, target)
     
     logits = outputs.logits
     
-    loss = criterion(logits, target_out_encoding.ids, target_out_encoding.mask)
+    loss = criterion(logits, label.ids, label.mask)
     for _, metric in enumerate(metrics):
-        metric.cumulate(logits, target_out_encoding.ids, target_out_encoding.mask)
+        metric.cumulate(logits, label.ids, label.mask)
     
     return loss
 
 
 @torch.no_grad()
 def _eval_step(model, batch, criterion: MaskedLabelSmoothingLoss, metrics: list[Metric]):
-    input_encoding, target_in_encoding, target_out_encoding = batch
+    input, target, label = batch
     
-    outputs: TransformerOutput = model(input_ids=input_encoding.ids,
-                                       target_in_ids=target_in_encoding.ids,
-                                       input_mask=input_encoding.mask,
-                                       target_in_mask=target_in_encoding.mask)
+    assert label.mask.dtype == torch.int64
+    
+    outputs: TransformerOutput = model(input, target)
     
     logits = outputs.logits
     
-    loss = criterion(logits, target_out_encoding.ids, target_out_encoding.mask)
+    loss = criterion(logits, label.ids, label.mask)
     for _, metric in enumerate(metrics):
-        metric.cumulate(logits, target_out_encoding.ids, target_out_encoding.mask)
+        metric.cumulate(logits, label.ids, label.mask)
     
     return loss
 
@@ -151,12 +148,14 @@ def do_train():
     
     model = Transformer(config).to(device)
     
-    optimizer, scheduler = create_optimizer_and_scheduler(model,
-                                                          init_lr=getattr(args, "init_lr"),
-                                                          warmup_steps=warmup_steps,
-                                                          total_steps=total_steps,
-                                                          min_proportion=getattr(args, "min_proportion"),
-                                                          weight_decay=getattr(args, "weight_decay"))
+    optimizer_and_scheduler = create_optimizer_and_scheduler(model,
+                                                             init_lr=getattr(args, "init_lr"),
+                                                             warmup_steps=warmup_steps,
+                                                             total_steps=total_steps,
+                                                             weight_decay=getattr(args, "weight_decay"))
+    
+    optimizer = optimizer_and_scheduler["optimizer"]
+    scheduler = optimizer_and_scheduler["scheduler"]
     
     monitor_loss = float("inf")
     monitor_bleu = 0.0
@@ -187,7 +186,9 @@ def do_train():
     
     training_states = None
     
-    if getattr(args, "load_prestates", False):
+    load_prestates = getattr(args, "load_prestates", False)
+    
+    if load_prestates:
         found_left_off = False
         training_states = torch.load(state_path)
         model.load_state_dict(training_states["model"])
@@ -201,6 +202,17 @@ def do_train():
         left_off_epoch = training_states["epoch"]
         left_off_step = training_states["step"]
         global_steps = training_states["global_steps"]
+    
+    print("****************Training Arguments ****************")
+    print("* Epochs:", epochs)
+    print("* Learning rate:", getattr(args, "init_lr"))
+    print("* Trainable parameters:", sum(p.numel() for p in model.parameters() if p.requires_grad))
+    print("* Warmup steps:", warmup_steps)
+    print("* Total steps:", total_steps)
+    print("* Use gpu:", use_gpu)
+    print("* Continue training:", load_prestates)
+    print("***************************************************")
+    print()
     
     optimizer.zero_grad()
     
@@ -257,7 +269,7 @@ def do_train():
                     val_loss = validation_outputs['loss']
                     val_accuracy = validation_outputs['accuracy']
                     val_bleu = validation_outputs['bleu']
-
+                    
                     val_log_line = (f"\033[95m{'val_loss':>8s}\033[00m: {val_loss:<10.4f} "
                                     f"\033[95m{'val_accuracy':>12s}\033[00m: {val_accuracy:<10.4f} "
                                     f"\033[95m{'val_bleu':>8s}\033[00m: {val_bleu:<10.4f} ")

@@ -47,7 +47,7 @@ class Line {
     }
 
     render() {
-        return `<a onclick="alert('w: ${this.weight}!');"><line class="line" x1="0" y1="${this.leftYOffset}" x2="${this.width}" y2="${this.rightYOffset}" /></a>`;
+        return `<a onclick="alert('w: ${this.weight}!');"><line class="weight-line" x1="0" y1="${this.leftYOffset}" x2="${this.width}" y2="${this.rightYOffset}" /></a>`;
     }
 }
 
@@ -134,7 +134,7 @@ function displayTokenAttentionLine(element) {
 }
 
 function visualizeLine() {
-    let attentionMapIndex = document.getElementById("number-input").value;
+    let attentionMapIndex = document.getElementById("number-input").value - 1;
     let inputTokenTable = document.getElementById("input-token");
     let targetTokenTable = document.getElementById("target-token");
 
@@ -188,6 +188,7 @@ function postData() {
     let targetTextArea = document.getElementById("target-language");
 
     let data = {
+        shutdown: false,
         input_language: inputLanguage.innerText.toLowerCase(),
         target_language: targetLanguage.innerText.toLowerCase(),
         text: inputText
@@ -196,6 +197,7 @@ function postData() {
     targetTextArea.value = "...";
 
     clearTable();
+    clearPlot();
 
     fetch('/translate', {
         method: 'POST',
@@ -224,7 +226,8 @@ function clearData() {
         cell.value = "";
         cell.style.height = 'auto';
     });
-    clearTable()
+    clearTable();
+    clearPlot();
 }
 
 function clearTable() {
@@ -235,6 +238,10 @@ function clearTable() {
             table.deleteRow(-1);
         }
     }
+}
+
+function clearPlot() {
+    document.getElementById("attention-map").innerHTML = "";
 }
 
 function showToast(info) {
@@ -257,20 +264,21 @@ function shutDown(element) {
     spinElement.classList.add('change-state');
     element.appendChild(spinElement);
 
-    let  data = "shutdown"
+    let data = { shutdown: true }
 
-    let status = ""
+    console.log(data);
 
-    fetch('', {
+    fetch('/shutdown', {
         method: 'POST',
         headers: {
         'Content-Type': 'application/json'
         },
-        body: data
-    }).then(response => response.text())
+        body: JSON.stringify(data)
+    }).then(response => response.json())
         .then(data => {
-            tar_text = JSON.parse(data).status
-            if (tar_text === "shutdown") {
+            message = data.shutdown;
+            console.log(message);
+            if (message) {
                 status = "Server disconnected!";
             }
             else {
@@ -286,7 +294,6 @@ function shutDown(element) {
             const spinElement = element.querySelector('.change-state');
             element.removeChild(spinElement);
             element.title = "Disconnected";
-            currentState = 'square';
             showToast(status);
     });
 }
@@ -299,8 +306,8 @@ function render() {
 
 function plotAttention() {
     let numberInput = document.getElementById("number-input");
-    numberInput.value = 0;
-    let attentionMapIndex = numberInput.value;
+    numberInput.value = 1;
+    let attentionMapIndex = numberInput.value - 1;
 
     let inputTokenTable = document.getElementById("input-token");
     let targetTokenTable = document.getElementById("target-token");
@@ -312,4 +319,107 @@ function plotAttention() {
     loadTokens(targetTokenTable, targetLength, translationOutput["target_tokens"]);
 
     plotLines(inputTokenTable, targetTokenTable, inputLength, targetLength, translationOutput["weight"][attentionMapIndex]);
+
+    visualizeAttentionMaps();
+}
+
+
+function getPlotSize(rows, cols, subplotWidth, subplotHeight, gap) {
+    let a = subplotWidth / subplotHeight;
+    let height = rows * subplotHeight + (rows - 1) * gap;
+    let width = a * cols * height / rows;
+    return [width, height];
+}
+
+function range(n) {
+    return [...Array(n).keys()]
+}
+
+function visualizeAttentionMaps() {
+    let attentionMaps = translationOutput.weight;
+    let cellWidth = 50;
+    let cellHeight = 50;
+    let gap = 100;
+
+    let inputTokens = translationOutput.input_tokens;
+    let targetTokens = translationOutput.target_tokens;
+
+    let [plotWidth, plotHeight] = getPlotSize(4, 4, inputTokens.length * cellWidth, targetTokens.length * cellHeight, gap);
+    let fillRatio = targetTokens.length * cellHeight / plotHeight;
+    let gapRatio = gap / plotHeight;
+    let data = []
+    for (let i = 0; i < 16; i++) {
+        data.push({
+            x: range(inputTokens.length),
+            y: range(targetTokens.length),
+            z: attentionMaps[i],
+            showscale: false,
+            xaxis: 'x' + (i + 1),
+            yaxis: 'y' + (i + 1),
+            type: 'heatmap',
+            name: 'Head ' + (i + 1)
+        })
+    }
+
+    let layout = {
+        title: '<b>Attention heads Visualization</b>',
+        font: {
+            size: 20,
+            color: 'green',
+            weight: 'bold',
+        },
+        grid: { pattern: 'independent' },
+        annotations: [],
+        width: plotWidth,
+        height: plotHeight
+    };
+
+    for (let i = 0; i < 16; i++) {
+        let rowIndex = Math.trunc(i / 4);
+        let colIndex = i % 4;
+        let xaxis = "xaxis" + (i + 1);
+        let yaxis = "yaxis" + (i + 1);
+        let xOffset = colIndex * (fillRatio + gapRatio);
+        let yOffset = rowIndex * (fillRatio + gapRatio);
+        layout[xaxis] = {
+            anchor: 'y' + (i + 1),
+            domain: [xOffset, xOffset + fillRatio],
+            tickmode: "array",
+            tickvals: range(inputTokens.length),
+            ticktext: inputTokens,
+            tickfont: {
+                size: 12,
+                color: "black"
+            }
+        };
+        layout[yaxis] = {
+            anchor: 'x' + (i + 1),
+            domain: [1.0 - (yOffset + fillRatio), 1.0 - yOffset],
+            tickmode: "array",
+            tickvals: range(targetTokens.length),
+            ticktext: targetTokens,
+            tickfont: {
+                size: 12,
+                color: "black"
+            }
+        };
+
+        layout.annotations.push({
+            text: `<b>${data[i].name}</b>`,
+            font: {
+                size: 15,
+                color: 'blue',
+            },
+            xanchor: 'left',
+            yanchor: 'bottom',
+            showarrow: false,
+            align: 'center',
+            x: xOffset,
+            y: 1.0 - yOffset,
+            xref: 'paper',
+            yref: 'paper',
+        })
+    }
+
+    Plotly.newPlot('attention-map', data, layout);
 }

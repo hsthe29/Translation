@@ -12,7 +12,7 @@ class Language(Enum):
 
 @dataclass
 class BatchEncoding:
-    ids: list[list[int]] | torch.Tensor = None
+    ids: list[list[int]] | torch.Tensor
     mask: list[list[int]] | torch.Tensor | None = None
     
     def to(self, device: str | torch.device | int) -> "BatchEncoding":
@@ -92,23 +92,28 @@ class CorpusFile:
     url: str
     language: Language
     
+    
+@dataclass
+class SeparatedInput:
+    features: torch.FloatTensor
+    pos_embedding: torch.FloatTensor
+    attention_mask: torch.FloatTensor | None = None
+    
 
 @dataclass
 class EncoderOutput:
     last_hidden_states: torch.FloatTensor = None
-    attention_weight: torch.FloatTensor = None
+    attention_weights: torch.FloatTensor = None
 
 
 @dataclass
 class DecoderOutput:
     last_hidden_states: torch.FloatTensor = None
-    self_attention_weight: torch.FloatTensor = None
-    cross_attention_weight: torch.FloatTensor = None
+    attention_weights: torch.FloatTensor = None
     
     
 @dataclass
 class TransformerOutput:
     logits: torch.FloatTensor = None
-    encoder_attention_weight: torch.FloatTensor = None
-    decoder_self_attention_weight: torch.FloatTensor = None
-    decoder_cross_attention_weight: torch.FloatTensor = None
+    encoder_attention_weights: torch.FloatTensor = None
+    decoder_attention_weights: torch.FloatTensor = None

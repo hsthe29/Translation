@@ -5,11 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Translator</title>
     <link rel="stylesheet" href="{{ url_for('static',filename='styles/main.css') }}">
+    <script src='https://cdn.plot.ly/plotly-2.27.0.min.js'></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </head>
 <body>
     <div class="title-container">
-        <h1 class="title">English-Vietnamese Translator</h1>
+        <h1 class="title">English↔Vietnamese Translator</h1>
         <div class="end-btn">
             <div class="state" onclick="shutDown(this)" title="Online"></div>
         </div>
@@ -33,13 +34,13 @@
     <hr>
     <div>
         <h2 class="title" style="text-align: center;">Visualize Attention</h2>
-        <hr>
+<!--        <hr>-->
         <div class="tool-bar">
             <label style="font-size: 20px;">Attention map index:</label>
-            <input type="number" id="number-input" value="0" max="15" min="0" style="width: 50px; font-size: 20px;">
+            <input type="number" id="number-input" value="1" max="16" min="1" style="width: 50px; font-size: 20px;">
             <button onclick="visualizeLine()">Visualize</button>
         </div>
-        <hr>
+<!--        <hr>-->
         <div class="attention-plot-container" id="main-plot">
             <table id="input-token">
                 <tr class="table-index-cell">
@@ -54,6 +55,8 @@
                 </tr>
             </table>
         </div>
+        <hr>
+        <div id='attention-map' style="border: 1px solid black; overflow: scroll;"></div>
     </div>
     <script>
         render();

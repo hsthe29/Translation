@@ -1,55 +1,44 @@
 import torch
 from torch import nn
 from .config import TransformerConfig
-from .layers import EncoderLayer, DecoderLayer, TransformerEmbeddings, EncoderOutput, DecoderOutput
-from ..dataclasses_utils import TransformerOutput
+from .layers import EncoderLayer, DecoderLayer, Embeddings, EncoderOutput, DecoderOutput
+from ..dataclasses_utils import TransformerOutput, SeparatedInput, BatchEncoding
 
 
-class TransformerEncoder(nn.Module):
+class Encoder(nn.Module):
     def __init__(self, config: TransformerConfig):
-        super(TransformerEncoder, self).__init__()
+        super(Encoder, self).__init__()
         
         self.layers = nn.ModuleList()
         
         for i in range(config.encoder_hidden_layers):
             self.layers.append(EncoderLayer(config))
     
-    def forward(self, input_features, pos_embed, attention_mask=None):
-        x = input_features
-        layer_outputs = None
+    def forward(self, input: SeparatedInput):
+        output = None
         for _, layer in enumerate(self.layers):
-            layer_outputs = layer(x, pos_embed, attention_mask)
-            x = layer_outputs.last_hidden_states
+            output = layer(input)
+            input = SeparatedInput(output.last_hidden_states, input.pos_embedding, input.attention_mask)
         
-        return layer_outputs
+        return output
 
 
-class TransformerDecoder(nn.Module):
+class Decoder(nn.Module):
     def __init__(self, config: TransformerConfig):
-        super(TransformerDecoder, self).__init__()
+        super(Decoder, self).__init__()
         
         self.layers = nn.ModuleList()
         
         for i in range(config.encoder_hidden_layers):
             self.layers.append(DecoderLayer(config))
     
-    def forward(self,
-                target_in_features: torch.FloatTensor,
-                input_features: torch.FloatTensor,
-                pos_embeddings: torch.FloatTensor,
-                target_in_mask: torch.FloatTensor | None,
-                input_mask: torch.Tensor | None = None):
-        layer_outputs = None
-        x = target_in_features
+    def forward(self, target: SeparatedInput, input_context: SeparatedInput):
+        output = None
         for _, layer in enumerate(self.layers):
-            layer_outputs = layer(x,
-                                  input_features,
-                                  pos_embeddings,
-                                  target_in_mask,
-                                  input_mask)
-            x = layer_outputs.last_hidden_states
+            output = layer(target, input_context)
+            target = SeparatedInput(output.last_hidden_states, target.pos_embedding, target.attention_mask)
         
-        return layer_outputs
+        return output
 
 
 class Transformer(nn.Module):
@@ -58,18 +47,14 @@ class Transformer(nn.Module):
         
         self.config = config
         
-        self.shared_embeddings = TransformerEmbeddings(config)
+        self.embeddings = Embeddings(config)
         
-        self.encoder = TransformerEncoder(config)
-        self.decoder = TransformerDecoder(config)
+        self.encoder = Encoder(config)
+        self.decoder = Decoder(config)
         
         self.final_fc = nn.Linear(config.hidden_size, config.vocab_size)
     
-    def forward(self,
-                input_ids: torch.Tensor,
-                target_in_ids: torch.Tensor,
-                input_mask: torch.Tensor | None = None,
-                target_in_mask: torch.Tensor | None = None):
+    def forward(self, input: BatchEncoding, target: BatchEncoding):
         """
             Params with shapes:
                 input_ids: [batch_size, Ti]
@@ -78,71 +63,82 @@ class Transformer(nn.Module):
                 target_in_attention_mask: [batch_size, Tt]
             
         """
-        if target_in_mask is not None:
-            target_in_mask = apply_causal_mask(target_in_mask)
-            target_in_mask = (1.0 - target_in_mask) * torch.finfo(torch.float32).min
+        input_mask = input.mask
+        target_mask = target.mask
+        
+        if target_mask is not None:
+            target_mask = apply_causal_mask(target_mask)
+            target_mask = (1.0 - target_mask) * torch.finfo(torch.float32).min
         
         if input_mask is not None:
             input_mask = (1.0 - input_mask[:, None, None, :].to(dtype=torch.float32)) * torch.finfo(
                 torch.float32).min
         
-        input_features = self.shared_embeddings(input_ids)
-        target_features = self.shared_embeddings(target_in_ids)
+        input_embeddings = self.embeddings(input.ids)
+        target_embeddings = self.embeddings(target.ids)
         
-        encoder_outputs: EncoderOutput = self.encoder(input_features[0], input_features[1], input_mask)
-        decoder_outputs: DecoderOutput = self.decoder(target_features[0],
-                                                      encoder_outputs.last_hidden_states,
-                                                      target_features[1],
-                                                      target_in_mask,
-                                                      input_mask)
+        input_embeddings.attention_mask = input_mask
+        target_embeddings.attention_mask = target_mask
+        
+        encoder_outputs: EncoderOutput = self.encoder(input_embeddings)
+        
+        input_context = SeparatedInput(encoder_outputs.last_hidden_states,
+                                       input_embeddings.pos_embedding,
+                                       input_embeddings.attention_mask)
+        
+        decoder_outputs: DecoderOutput = self.decoder(target_embeddings, input_context)
         
         logits = self.final_fc(decoder_outputs.last_hidden_states)
         
         return TransformerOutput(
             logits=logits,
-            encoder_attention_weight=encoder_outputs.attention_weight.detach(),
-            decoder_self_attention_weight=decoder_outputs.self_attention_weight.detach(),
-            decoder_cross_attention_weight=decoder_outputs.cross_attention_weight.detach()
+            encoder_attention_weights=encoder_outputs.attention_weights,
+            decoder_attention_weights=decoder_outputs.attention_weights
         )
     
     @torch.no_grad()
-    def extract_input_features(self,
-                               ids: torch.LongTensor,
-                               mask: torch.LongTensor = None) -> EncoderOutput:
+    def extract_features(self, input: BatchEncoding) -> SeparatedInput:
         """Use for inference"""
         
-        features = self.shared_embeddings(ids)
-        if mask is not None:
-            mask = (1.0 - mask[:, None, None, :].to(dtype=torch.float32)) * torch.finfo(
+        input_embeddings = self.embeddings(input.ids)
+        attention_mask = input.mask
+        
+        if attention_mask is not None:
+            attention_mask = (1.0 - attention_mask[:, None, None, :].to(dtype=torch.float32)) * torch.finfo(
                 torch.float32).min
-        return self.encoder(features[0], features[1], mask)
+        
+        input_embeddings.attention_mask = attention_mask
+        
+        encoder_output: EncoderOutput = self.encoder(input_embeddings)
+        
+        input_context = SeparatedInput(encoder_output.last_hidden_states,
+                                       input_embeddings.pos_embedding,
+                                       input_embeddings.attention_mask)
+        
+        return input_context
     
     @torch.no_grad()
-    def predict_ids_probabilities(self,
-                                  target_in_ids,
-                                  input_features,
-                                  target_in_mask=None,
-                                  input_mask=None) -> TransformerOutput:
+    def next_token(self,
+                   target: BatchEncoding,
+                   input_context: SeparatedInput) -> TransformerOutput:
         """Use for inference"""
         
-        self.eval()
-        features = self.shared_embeddings(target_in_ids)
-        if target_in_mask is not None:
-            target_in_mask = apply_causal_mask(target_in_mask)
-            target_in_mask = (1.0 - target_in_mask) * torch.finfo(torch.float32).min
+        target_embeddings = self.embeddings(target.ids)
+        target_mask = target.mask
         
-        decoder_outputs = self.decoder(features[0],
-                                       input_features,
-                                       features[1],
-                                       target_in_mask,
-                                       input_mask)
+        if target_mask is not None:
+            target_mask = apply_causal_mask(target_mask)
+            target_mask = (1.0 - target_mask) * torch.finfo(torch.float32).min
+        
+        target_embeddings.attention_mask = target_mask
+        
+        decoder_outputs = self.decoder(target_embeddings, input_context)
         
         logits = self.final_fc(decoder_outputs.last_hidden_states)
         
         return TransformerOutput(
-            logits=logits,
-            decoder_self_attention_weight=decoder_outputs.self_attention_weight.detach(),
-            decoder_cross_attention_weight=decoder_outputs.cross_attention_weight.detach()
+            logits=logits[:, -1:, :],
+            decoder_attention_weights=decoder_outputs.attention_weights[0, :, -1:, :]
         )
 
 

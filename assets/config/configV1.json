@@ -17,6 +17,7 @@
     "label_smoothing": 0.1,
     "max_position_embeddings": 128,
     "layer_norm_eps": 1e-6,
-    "seed": 291
+    "seed": 291,
+    "pretrained_path": "checkpoint/loss/model_state_dict.pt"
   }
 }

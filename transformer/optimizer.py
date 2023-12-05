@@ -1,46 +1,27 @@
 import torch
-from torch.optim.lr_scheduler import LRScheduler
+from torch.optim.lr_scheduler import LambdaLR
 
 
-class WarmupLinearLR(LRScheduler):
-    def __init__(self,
-                 optimizer,
-                 warmup_steps,
-                 total_steps,
-                 min_proportion=0.0,
-                 last_epoch=-1,
-                 verbose=False):
-        
+class WarmupLinearLR(LambdaLR):
+    """ Linear warmup and then linear decay.
+        Linearly increases learning rate from 0 to 1 over `warmup_steps` training steps.
+        Linearly decreases learning rate from 1. to 0. over remaining `total_steps - warmup_steps` steps.
+    """
+    def __init__(self, optimizer, warmup_steps, total_steps, last_epoch=-1):
         self.warmup_steps = warmup_steps
-        self.max_steps = (total_steps - min_proportion * warmup_steps) / (1.0 - min_proportion)
-        super(WarmupLinearLR, self).__init__(optimizer, last_epoch, verbose)
-    
-    def get_lr(self):
-        if self.last_epoch == 0:
-            return [group['lr'] * 0.1 / self.warmup_steps for group in self.optimizer.param_groups]
-        
-        if self.last_epoch > self.max_steps:
-            return [group['lr'] for group in self.optimizer.param_groups]
-        
-        if self.last_epoch < self.warmup_steps:
-            return [group['initial_lr'] * self.last_epoch / self.warmup_steps for group in self.optimizer.param_groups]
-        else:
-            return [group['initial_lr'] * (self.max_steps - self.last_epoch) / (self.max_steps - self.warmup_steps) for
-                    group in self.optimizer.param_groups]
-    
-    def _get_closed_form_lr(self):
-        if self.last_epoch < self.warmup_steps:
-            return [base_lr * self.last_epoch / self.warmup_steps for base_lr in self.base_lrs]
-        else:
-            return [base_lr * (self.max_steps - self.last_epoch) / (self.max_steps - self.warmup_steps) for base_lr
-                    in self.base_lrs]
+        self.total_steps = total_steps
+        super(WarmupLinearLR, self).__init__(optimizer, self.lr_lambda, last_epoch=last_epoch)
 
+    def lr_lambda(self, step):
+        if step < self.warmup_steps:
+            return float(step) / float(max(1, self.warmup_steps))
+        return max(0.0, float(self.total_steps - step) / float(max(1.0, self.total_steps - self.warmup_steps)))
+    
 
 def create_optimizer_and_scheduler(model,
                                    init_lr: float,
                                    warmup_steps: int,
                                    total_steps: int,
-                                   min_proportion: float = 0.0,
                                    weight_decay: float = 0.001):
     """Returns: optimizer, scheduler"""
     no_decay = ['bias', 'layer_norm.weight']
@@ -52,6 +33,6 @@ def create_optimizer_and_scheduler(model,
     ]
     
     optimizer = torch.optim.AdamW(optimizer_grouped_parameters, lr=init_lr, weight_decay=0.0)
-    scheduler = WarmupLinearLR(optimizer, warmup_steps, total_steps, min_proportion=min_proportion)
+    scheduler = WarmupLinearLR(optimizer, warmup_steps, total_steps)
     
-    return optimizer, scheduler
+    return {"optimizer": optimizer, "scheduler": scheduler}
