@@ -62,11 +62,11 @@ Training arguments:
   - config: "assets/config/configV1.json"
   - load_prestates: True
   - epochs: 20
-  - init_lr: 2e-4
+  - init_lr: 1e-4
   - train_data_dir: /path_to_train_data_dir/
   - val_data_dir: /path_to_val_data_dir/
-  - train_batch_size: 8
-  - val_batch_size: 16
+  - train_batch_size: 16
+  - val_batch_size: 32
   - print_steps: 500
   - validation_steps: 1000
   - max_warmup_steps: 10000
@@ -90,8 +90,18 @@ $ python train.py [training arguments]
 ```
 
 # Web server
-- Using [Flask](https://github.com/pallets/flask) to deploy a simple web server run on `localhost` that provides bilingual translation and visualizes attention weights between pairs of sentences
-- Use [checkpoint]() at step 12000 (updating)
+- Use [Flask](https://github.com/pallets/flask) to deploy a simple web server run on `localhost` that provides bilingual translation and visualizes attention weights between pairs of sentences
+- Use [Plotly.js](https://plotly.com/javascript/) to visualize attention maps.
+- Use [checkpoint]() at step 12000, Cross Entropy per tokens(updating)
 - Run: `$ python run_app.py` or `$ python3 run_app.py`
+
+## Simple UI
+
+<p align="center" width="100%">
+    <img src="img.png" width="500px"> 
+</p>
+
+## Attention maps
+...
 
 # Please give me a star if you find this project interesting <img src="https://drive.google.com/uc?id=1Qu--qOtp5yFN0OzkKA25R-nN9nQzdVPl" width="32">
