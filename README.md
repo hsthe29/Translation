@@ -103,7 +103,8 @@ $ python train.py [training arguments]
 # Web server
 - Use [Flask](https://github.com/pallets/flask) to deploy a simple web server run on `localhost` that provides bilingual translation and visualizes attention weights between pairs of sentences
 - Use [Plotly.js](https://plotly.com/javascript/) to visualize attention maps.
-- Use [checkpoint](https://drive.google.com/file/d/1pikSnFuBHo-B2hn0YTziNCF22J2B4yPV/view) at step 100k (25k update steps), Cross Entropy per tokens: 3.5154
+- Use [checkpoint](https://drive.google.com/file/d/1pikSnFuBHo-B2hn0YTziNCF22J2B4yPV/view) at step 100k (25k update steps), Cross Entropy per tokens: 3.5154,
+  - Download checkpoint and edit "pretrained_path" (path that checkpoint has been downloaded) in config file
 - Run: `$ python run_app.py` or `$ python3 run_app.py`
 
 ## Simple UI
