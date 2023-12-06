@@ -91,18 +91,19 @@ $ python train.py [training arguments]
 
 # Inference
 
+<h2 align="center">Example</h2>
 <p align="center" width="100%">
     <img src="img_1.png" width="800px"> 
 </p>
-
+<h2 align="center">Attention Maps</h2>
 <p align="center" width="100%">
-    <img src="plot.png" width="1000px"> 
+    <img src="plot.png"> 
 </p>
 
 # Web server
 - Use [Flask](https://github.com/pallets/flask) to deploy a simple web server run on `localhost` that provides bilingual translation and visualizes attention weights between pairs of sentences
 - Use [Plotly.js](https://plotly.com/javascript/) to visualize attention maps.
-- Use [checkpoint]() at step 12000, Cross Entropy per tokens(updating)
+- Use [checkpoint](https://drive.google.com/file/d/1pikSnFuBHo-B2hn0YTziNCF22J2B4yPV/view) at step 100k (25k update steps), Cross Entropy per tokens: 3.5154
 - Run: `$ python run_app.py` or `$ python3 run_app.py`
 
 ## Simple UI
@@ -110,8 +111,5 @@ $ python train.py [training arguments]
 <p align="center" width="100%">
     <img src="img.png" width="500px"> 
 </p>
-
-## Attention maps
-...
 
 # Please give me a star if you find this project interesting <img src="https://drive.google.com/uc?id=1Qu--qOtp5yFN0OzkKA25R-nN9nQzdVPl" width="32">
