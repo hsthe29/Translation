@@ -1,9 +1,10 @@
-from . import app, generate_server_state
 from flask import render_template, request, jsonify
-from transformer.model import TransformerConfig, GenerationConfig
 
+from transformer.model import GenerationConfig
+from . import app, generate_server_state
 
 server = generate_server_state()
+
 
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/index', methods=['GET', 'POST'])
@@ -32,7 +33,7 @@ def shutdown():
 @app.route('/translate', methods=['POST'])
 def translate():
     data = request.get_json()  # {'shutdown': ,'input_language': , 'target_language': , 'text': }
-        
+    
     if server["running"]:
         translator = server["translator"]
         input_encoding, target_encoding = translator.preprocess_input(data["text"],
@@ -50,7 +51,7 @@ def translate():
             "translation": best_result["translation"],
             "weight": best_result["weight"]
         }
-    
+        
         return jsonify(response_data), 200
     
     return jsonify({}), 404
