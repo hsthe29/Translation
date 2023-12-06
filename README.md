@@ -89,6 +89,16 @@ $ python preload_data.py --config=... --data_dir=... --save_dir=... --chunk_size
 $ python train.py [training arguments]
 ```
 
+# Inference
+
+<p align="center" width="100%">
+    <img src="img_1.png" width="800px"> 
+</p>
+
+<p align="center" width="100%">
+    <img src="plot.png" width="1000px"> 
+</p>
+
 # Web server
 - Use [Flask](https://github.com/pallets/flask) to deploy a simple web server run on `localhost` that provides bilingual translation and visualizes attention weights between pairs of sentences
 - Use [Plotly.js](https://plotly.com/javascript/) to visualize attention maps.
